@@ -169,6 +169,35 @@ func (b block) shiftRows() block {
 	return output
 }
 
+func mul2(data byte) byte {
+	output := data << 1
+	if data&0x80 != 0 { // overflow protection, check if the most significant bit was 1. 0x80 is a bit mask
+		output ^= 0x1b // reduction from the AES standard todo figure out why
+	}
+	return output
+}
+
+func mul3(data byte) byte {
+	return mul2(data) ^ data
+}
+
+func mixColumn(column [4]byte) [4]byte {
+	return [4]byte{
+		mul2(column[0]) ^ mul3(column[1]) ^ column[2] ^ column[3],
+		column[0] ^ mul2(column[1]) ^ mul3(column[2]) ^ column[3],
+		column[0] ^ column[1] ^ mul2(column[2]) ^ mul3(column[3]),
+		mul3(column[0]) ^ column[1] ^ column[2] ^ mul2(column[3]),
+	}
+}
+
+func (b block) mixBlock() block {
+	output := block{}
+	for col := 0; col < 4; col++ {
+		output[col] = mixColumn(b[col])
+	}
+	return output
+}
+
 //func demoBlock() {
 //	log.Info("Started", "Demonstration", "blockFormatting")
 //	input := []byte{}
