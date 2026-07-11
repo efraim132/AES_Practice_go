@@ -9,8 +9,6 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-const mode = "dev"
-
 var RCON = [10]byte{0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36}
 
 type word [4]byte
@@ -79,6 +77,15 @@ func getBlock(data [16]byte) (error, block) {
 	return nil, output
 }
 
+func (r roundkey) getBlock() block {
+	var out block
+	out[0] = r[0]
+	out[1] = r[1]
+	out[2] = r[2]
+	out[3] = r[3]
+	return out
+}
+
 func (b block) prettyPrintBlock() {
 	// Print the state row by row while reading from the column-major layout.
 	fmt.Println("+------------------+")
@@ -106,7 +113,7 @@ func (w word) rotateWord() word {
 
 func generateRoundKey(previousKey roundkey, round int) (error, roundkey) {
 	if round < 1 || round > 10 {
-		return error(fmt.Errorf("round must be between 1 and 10, got %d", round)), roundkey{}
+		return fmt.Errorf("round must be between 1 and 10, got %d", round), roundkey{}
 	}
 
 	output := roundkey{}
@@ -126,7 +133,7 @@ func generateRoundKey(previousKey roundkey, round int) (error, roundkey) {
 }
 
 func generateRoundKeys(originalKey [16]byte) (error, []roundkey) {
-	outputKeys := []roundkey{}
+	var outputKeys []roundkey
 	err, originalKeyBlockForm := getBlock(originalKey)
 	log.Info("Converting Original Key", "originalKey", originalKey, "originalKeyBlockForm", originalKeyBlockForm)
 	if err != nil {
@@ -162,46 +169,47 @@ func (b block) shiftRows() block {
 	return output
 }
 
-func demoBlock() {
-	log.Info("Started", "Demonstration", "blockFormatting")
-	input := []byte{}
-	switch mode {
-	case "release":
-		fmt.Println("Release mode, enter input:")
-		fmt.Scanln(&input)
-	case "dev":
-		input = []byte{49, 50, 51, 52, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70, 71}
-	}
-	log.Info("Processing", "Input", input)
-	var arr [16]byte
-	copy(arr[:], input)
-	err, output := getBlock(arr)
-	if err != nil {
-		fmt.Println(err)
-	}
-	output.prettyPrintBlock()
-	log.Info("Demonstration block finished")
-}
+//func demoBlock() {
+//	log.Info("Started", "Demonstration", "blockFormatting")
+//	input := []byte{}
+//	switch mode {
+//	case "release":
+//		fmt.Println("Release mode, enter input:")
+//		_, err := fmt.Scanln(&input)
+//		if err != nil {
+//			log.Fatal("Error reading input:", err)
+//		}
+//	case "dev":
+//		input = []byte{49, 50, 51, 52, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70, 71}
+//	}
+//	log.Info("Processing", "Input", input)
+//	var arr [16]byte
+//	copy(arr[:], input)
+//	err, output := getBlock(arr)
+//	if err != nil {
+//		fmt.Println(err)
+//	}
+//	output.prettyPrintBlock()
+//	log.Info("Demonstration block finished")
+//}
 
-func demoRoundkey() {
-	log.Info("Started", "Demonstration", "roundKeyGeneration")
-	PrimaryKey := [16]byte{
-		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
-	log.Info("Processing", "PrimaryKey", PrimaryKey)
-
-	err, roundKeys := generateRoundKeys(PrimaryKey)
-	if err != nil {
-		panic(err)
-	}
-
-	for i, roundKey := range roundKeys {
-		log.Info(fmt.Sprintf("Result [%v]", i), "RoundKey", roundKey)
-	}
-
-}
+//func demoRoundkey() {
+//	log.Info("Started", "Demonstration", "roundKeyGeneration")
+//	PrimaryKey := [16]byte{
+//		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
+//	log.Info("Processing", "PrimaryKey", PrimaryKey)
+//
+//	err, roundKeys := generateRoundKeys(PrimaryKey)
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	for i, roundKey := range roundKeys {
+//		log.Info(fmt.Sprintf("Result [%v]", i), "RoundKey", roundKey)
+//	}
+//
+//}
 
 func main() {
 	log.Info("Starting AES-128 recreation")
-	//demoBlock()
-	demoRoundkey()
 }
