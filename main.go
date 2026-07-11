@@ -92,29 +92,16 @@ func (b block) prettyPrintBlock() {
 	fmt.Println("+------------------+")
 }
 
-func generateRoundKeys(originalKey [16]byte) (error, []roundkey) {
-	outputKeys := []roundkey{}
-	err, originalKeyBlockForm := getBlock(originalKey)
-	log.Info("Converting Original Key", "originalKey", originalKey, "originalKeyBlockForm: ", originalKeyBlockForm)
-	if err != nil {
-		return fmt.Errorf("original key must be 16 bytes long"), nil
+func (w word) xor(B word) word {
+	output := word{}
+	for b := 0; b < 4; b++ {
+		output[b] = w[b] ^ B[b]
 	}
-	// Convert the original key into a roundkey form
-	var originalRoundWordForm roundkey
-	for col := 0; col < 4; col++ {
-		originalRoundWordForm[col] = originalKeyBlockForm[col] // Copy entire column
-	}
-	outputKeys = append(outputKeys, originalRoundWordForm)
+	return output
+}
 
-	for round := 1; round <= 10; round++ {
-		err, newRoundKey := generateRoundKey(outputKeys[round-1], round)
-		if err != nil {
-			return err, nil
-		}
-		outputKeys = append(outputKeys, newRoundKey)
-	}
-
-	return nil, outputKeys
+func (w word) rotateWord() word {
+	return word{w[1], w[2], w[3], w[0]}
 }
 
 func generateRoundKey(previousKey roundkey, round int) (error, roundkey) {
@@ -138,16 +125,51 @@ func generateRoundKey(previousKey roundkey, round int) (error, roundkey) {
 	return nil, output
 }
 
-func (w word) xor(B word) word {
-	output := word{}
-	for b := 0; b < 4; b++ {
-		output[b] = w[b] ^ B[b]
+func generateRoundKeys(originalKey [16]byte) (error, []roundkey) {
+	outputKeys := []roundkey{}
+	err, originalKeyBlockForm := getBlock(originalKey)
+	log.Info("Converting Original Key", "originalKey", originalKey, "originalKeyBlockForm", originalKeyBlockForm)
+	if err != nil {
+		return fmt.Errorf("original key must be 16 bytes long"), nil
 	}
-	return output
+	// Convert the original key into a roundkey form
+	var originalRoundWordForm roundkey
+	for col := 0; col < 4; col++ {
+		originalRoundWordForm[col] = originalKeyBlockForm[col] // Copy entire column
+	}
+	outputKeys = append(outputKeys, originalRoundWordForm)
+
+	for round := 1; round <= 10; round++ {
+		err, newRoundKey := generateRoundKey(outputKeys[round-1], round)
+		if err != nil {
+			return err, nil
+		}
+		outputKeys = append(outputKeys, newRoundKey)
+	}
+
+	return nil, outputKeys
 }
 
-func (w word) rotateWord() word {
-	return word{w[1], w[2], w[3], w[0]}
+func shiftRow(row [4]byte) [4]byte {
+	return [4]byte{row[1], row[2], row[3], row[0]}
+}
+
+func (b block) shiftRows() block {
+	outputRows := [4][4]byte{}
+	for col := 0; col < 4; col++ {
+		for row := 0; row < 4; row++ {
+			outputRows[row][col] = b[col][row]
+		}
+	}
+
+	for row := 0; row < 4; row++ {
+		for perm := 0; perm < row; perm++ {
+			outputRows[row] = shiftRow(outputRows[row])
+		}
+	}
+
+	return block{outputRows[0], outputRows[1], outputRows[2], outputRows[3]}
+
 }
 
 func demoBlock() {
@@ -168,7 +190,7 @@ func demoBlock() {
 		fmt.Println(err)
 	}
 	output.prettyPrintBlock()
-	log.Infof("Demonstration block finished")
+	log.Info("Demonstration block finished")
 }
 
 func demoRoundkey() {
@@ -179,7 +201,7 @@ func demoRoundkey() {
 
 	err, roundKeys := generateRoundKeys(PrimaryKey)
 	if err != nil {
-		log.Fatal(err.Error())
+		panic(err)
 	}
 
 	for i, roundKey := range roundKeys {
