@@ -17,6 +17,7 @@ type word [4]byte
 
 type roundkey [4]word
 
+// block stores AES state in column-major order: block[column][row].
 type block [4][4]byte
 
 // AES S-box (forward substitution box) as defined by the AES-128 standard.
@@ -67,20 +68,19 @@ func (b block) substituteBytes() block {
 
 func getBlock(data [16]byte) (error, block) {
 	output := block{}
-	for row := 0; row < 4; row++ {
-		output[row] = [4]byte{
-			data[row*4],
-			data[row*4+1],
-			data[row*4+2],
-			data[row*4+3],
+	for col := 0; col < 4; col++ {
+		output[col] = [4]byte{
+			data[col*4],
+			data[col*4+1],
+			data[col*4+2],
+			data[col*4+3],
 		}
 	}
 	return nil, output
 }
 
 func (b block) prettyPrintBlock() {
-	// Print the state in row-major order so each [4]byte column
-	// is displayed vertically (up/down) as in standard AES state
+	// Print the state row by row while reading from the column-major layout.
 	fmt.Println("+------------------+")
 	for row := 0; row < 4; row++ {
 		fmt.Print("|")
@@ -150,26 +150,16 @@ func generateRoundKeys(originalKey [16]byte) (error, []roundkey) {
 	return nil, outputKeys
 }
 
-func shiftRow(row [4]byte) [4]byte {
-	return [4]byte{row[1], row[2], row[3], row[0]}
-}
-
 func (b block) shiftRows() block {
-	outputRows := [4][4]byte{}
-	for col := 0; col < 4; col++ {
-		for row := 0; row < 4; row++ {
-			outputRows[row][col] = b[col][row]
-		}
-	}
-
+	output := block{}
 	for row := 0; row < 4; row++ {
-		for perm := 0; perm < row; perm++ {
-			outputRows[row] = shiftRow(outputRows[row])
+		for col := 0; col < 4; col++ {
+			sourceCol := (col + row) % 4
+			output[col][row] = b[sourceCol][row]
 		}
 	}
 
-	return block{outputRows[0], outputRows[1], outputRows[2], outputRows[3]}
-
+	return output
 }
 
 func demoBlock() {
