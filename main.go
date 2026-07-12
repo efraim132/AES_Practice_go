@@ -373,9 +373,11 @@ func (b block) applyInverseFullRound(r roundkey) block {
 	return b
 }
 
-func demoEncrypt() {
+func demoEncrypt() [16]byte {
 	log.Info("Started", "Demonstration", "blockEncryption")
-	plainText := [16]byte{0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d, 0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34}
+	temp := []byte("efraimisthebest!")
+	plainText := [16]byte{}
+	copy(plainText[:], temp)
 	cipherKey := [16]byte{0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c}
 
 	log.Info("Starting Encrypt", "plainText", plainText, "cipherKey", cipherKey)
@@ -390,9 +392,32 @@ func demoEncrypt() {
 	plainBlock.prettyPrintBlock()
 	fmt.Println("Finished Block")
 	cipherBlock.prettyPrintBlock()
+	cipherData := cipherBlock.getData()
+	log.Info("Final Encrypted Message", "plainText", string(plainText[:]), "cipherText", string(cipherData[:]))
+	return cipherData
+}
+
+func demoDecrypt(cipherData [16]byte) {
+	log.Info("Started", "Demonstration", "blockDecryption")
+	cipherKey := [16]byte{0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c}
+
+	log.Info("Starting Encrypt", "cipherText", cipherData, "cipherKey", cipherKey)
+	err, cipherBlock := getBlock(cipherData)
+	if err != nil {
+		log.Fatal("Error getting cipherText text:", err)
+	}
+
+	plainBlock := cipherBlock.decryptBlock(cipherKey)
+	log.Info("Finished Decrypt", "plainBlock", plainBlock)
+	fmt.Println("Starting Block")
+	cipherBlock.prettyPrintBlock()
+	fmt.Println("Finished Block")
+	plainBlock.prettyPrintBlock()
+	plainData := plainBlock.getData()
+	log.Info("Final Decrypted Message", "cipherText", string(cipherData[:]), "plainText", string(plainData[:]))
 }
 
 func main() {
 	log.Info("Starting AES-128 recreation")
-	demoEncrypt()
+	demoDecrypt(demoEncrypt())
 }
