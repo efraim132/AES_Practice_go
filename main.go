@@ -209,6 +209,33 @@ func (b block) xorRoundKey(key roundkey) block {
 	return output
 }
 
+func (b block) applyFullRound(keyForRound roundkey) block {
+	b = b.substituteBytes()
+	b = b.shiftRows()
+	b = b.mixBlock()
+	b = b.xorRoundKey(keyForRound)
+	return b
+}
+
+func (b block) encryptBlock(cipherKey [16]byte) block {
+	result := b
+
+	err, roundKeys := generateRoundKeys(cipherKey)
+	if err != nil {
+		log.Fatal("Error generating round keys:", err)
+	}
+
+	result = b.xorRoundKey(roundKeys[0]) // Initial round key addition
+
+	for round := 1; round < 10; round++ {
+		result = result.applyFullRound(roundKeys[round])
+	}
+	result = result.substituteBytes()
+	result = result.shiftRows()
+	result = result.xorRoundKey(roundKeys[10])
+	return result
+}
+
 //func demoBlock() {
 //	log.Info("Started", "Demonstration", "blockFormatting")
 //	input := []byte{}
@@ -250,6 +277,26 @@ func (b block) xorRoundKey(key roundkey) block {
 //
 //}
 
+func demoEncrypt() {
+	log.Info("Started", "Demonstration", "blockEncryption")
+	plainText := [16]byte{0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d, 0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34}
+	cipherKey := [16]byte{0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c}
+
+	log.Info("Starting Encrypt", "plainText", plainText, "cipherKey", cipherKey)
+	err, plainBlock := getBlock(plainText)
+	if err != nil {
+		log.Fatal("Error getting plain text:", err)
+	}
+
+	cipherBlock := plainBlock.encryptBlock(cipherKey)
+	log.Info("Finished Encrypt", "cipherBlock", cipherBlock)
+	fmt.Println("Starting Block")
+	plainBlock.prettyPrintBlock()
+	fmt.Println("Finished Block")
+	cipherBlock.prettyPrintBlock()
+}
+
 func main() {
 	log.Info("Starting AES-128 recreation")
+	demoEncrypt()
 }
