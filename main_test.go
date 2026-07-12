@@ -217,6 +217,46 @@ func TestEncryptBlock_AES128StandardVector(t *testing.T) {
 	}
 }
 
+func TestEncryptThenDecryptBlock_AES128StandardVector(t *testing.T) {
+	logTestLifecycle(t)
+
+	plaintext := [16]byte{
+		0x00, 0x11, 0x22, 0x33,
+		0x44, 0x55, 0x66, 0x77,
+		0x88, 0x99, 0xaa, 0xbb,
+		0xcc, 0xdd, 0xee, 0xff,
+	}
+	key := [16]byte{
+		0x00, 0x01, 0x02, 0x03,
+		0x04, 0x05, 0x06, 0x07,
+		0x08, 0x09, 0x0a, 0x0b,
+		0x0c, 0x0d, 0x0e, 0x0f,
+	}
+	expectedCiphertext := [16]byte{
+		0x69, 0xc4, 0xe0, 0xd8,
+		0x6a, 0x7b, 0x04, 0x30,
+		0xd8, 0xcd, 0xb7, 0x80,
+		0x70, 0xb4, 0xc5, 0x5a,
+	}
+
+	gotErr, plainBlock := getBlock(plaintext)
+	if gotErr != nil {
+		t.Fatalf("getBlock returned error for plaintext: %v", gotErr)
+	}
+
+	encrypted := plainBlock.encryptBlock(key)
+	encryptedData := encrypted.getData()
+	if encryptedData != expectedCiphertext {
+		t.Fatalf("encryptBlock mismatch\n got: %#v\nwant: %#v", encryptedData, expectedCiphertext)
+	}
+
+	decrypted := encrypted.decryptBlock(key)
+	decryptedData := decrypted.getData()
+	if decryptedData != plaintext {
+		t.Fatalf("decryptBlock mismatch\n got: %#v\nwant: %#v", decryptedData, plaintext)
+	}
+}
+
 func TestAES128RoundStages_MatchNISTAppendixB(t *testing.T) {
 	logTestLifecycle(t)
 
