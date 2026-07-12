@@ -198,6 +198,17 @@ func (b block) mixBlock() block {
 	return output
 }
 
+func (b block) xorRoundKey(key roundkey) block {
+	keyBlock := key.getBlock()
+	output := block{}
+	for row := 0; row < 4; row++ {
+		for col := 0; col < 4; col++ {
+			output[row][col] = keyBlock[row][col] ^ b[row][col]
+		}
+	}
+	return output
+}
+
 //func demoBlock() {
 //	log.Info("Started", "Demonstration", "blockFormatting")
 //	input := []byte{}
