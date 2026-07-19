@@ -1,4 +1,4 @@
-package main
+package aes
 
 import (
 	"fmt"
@@ -206,10 +206,10 @@ func TestEncryptBlock_AES128StandardVector(t *testing.T) {
 	preFinalRound = preFinalRound.substituteBytes()
 	preFinalRound = preFinalRound.shiftRows()
 
-	got := state.encryptBlock(key)
+	got := state.EncryptBlock(key)
 
 	if got == preFinalRound {
-		t.Fatalf("encryptBlock returned the state before the final AddRoundKey step; main.go calls result.xorRoundKey(roundKeys[10]) but does not assign the result back")
+		t.Fatalf("EncryptBlock returned the state before the final AddRoundKey step")
 	}
 
 	if got != want {
@@ -244,13 +244,13 @@ func TestEncryptThenDecryptBlock_AES128StandardVector(t *testing.T) {
 		t.Fatalf("getBlock returned error for plaintext: %v", gotErr)
 	}
 
-	encrypted := plainBlock.encryptBlock(key)
+	encrypted := plainBlock.EncryptBlock(key)
 	encryptedData := encrypted.getData()
 	if encryptedData != expectedCiphertext {
 		t.Fatalf("encryptBlock mismatch\n got: %#v\nwant: %#v", encryptedData, expectedCiphertext)
 	}
 
-	decrypted := encrypted.decryptBlock(key)
+	decrypted := encrypted.DecryptBlock(key)
 	decryptedData := decrypted.getData()
 	if decryptedData != plaintext {
 		t.Fatalf("decryptBlock mismatch\n got: %#v\nwant: %#v", decryptedData, plaintext)
