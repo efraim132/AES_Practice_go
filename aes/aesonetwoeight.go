@@ -288,6 +288,7 @@ func (b block) EncryptBlock(cipherKey [16]byte) block {
 	return result
 }
 
+// EncryptBytes encrypts a 16 byte block with full AES
 func EncryptBytes(key, data []byte) ([]byte, error) {
 	if len(key) != 16 {
 		return nil, fmt.Errorf("key must be 16 bytes")
