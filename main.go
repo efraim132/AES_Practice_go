@@ -1,14 +1,13 @@
 package main
 
 import (
-	"os"
-
 	"AES_Practice_go/aes"
+	"os"
 
 	"github.com/charmbracelet/log"
 )
 
-func main() {
+func demoCTR() {
 	filename := "icon.png"
 	log.Info("Starting AES-128 Block Encryption Problem")
 	log.Info("Encrypting File", "filename", filename)
@@ -42,5 +41,8 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Infof("Decrypted file %s written", decryptedFileName)
+}
 
+func main() {
+	demoCTR()
 }
