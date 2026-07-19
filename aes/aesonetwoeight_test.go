@@ -59,7 +59,7 @@ func TestGetBlock_UsesAESColumnMajorOrdering(t *testing.T) {
 		0x0c, 0x0d, 0x0e, 0x0f,
 	}
 
-	gotErr, got := getBlock(input)
+	got, gotErr := getBlock(input)
 	if gotErr != nil {
 		t.Fatalf("getBlock returned error: %v", gotErr)
 	}
@@ -81,7 +81,7 @@ func TestGenerateRoundKeys_AES128StandardVector(t *testing.T) {
 
 	key := [16]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
 
-	gotErr, got := generateRoundKeys(key)
+	got, gotErr := generateRoundKeys(key)
 	if gotErr != nil {
 		t.Fatalf("generateRoundKeys returned error: %v", gotErr)
 	}
@@ -184,17 +184,17 @@ func TestEncryptBlock_AES128StandardVector(t *testing.T) {
 		0x70, 0xb4, 0xc5, 0x5a,
 	}
 
-	gotErr, state := getBlock(plaintext)
+	state, gotErr := getBlock(plaintext)
 	if gotErr != nil {
 		t.Fatalf("getBlock returned error for plaintext: %v", gotErr)
 	}
 
-	wantErr, want := getBlock(expectedCiphertext)
+	want, wantErr := getBlock(expectedCiphertext)
 	if wantErr != nil {
 		t.Fatalf("getBlock returned error for ciphertext: %v", wantErr)
 	}
 
-	gotErr, roundKeys := generateRoundKeys(key)
+	roundKeys, gotErr := generateRoundKeys(key)
 	if gotErr != nil {
 		t.Fatalf("generateRoundKeys returned error: %v", gotErr)
 	}
@@ -239,7 +239,7 @@ func TestEncryptThenDecryptBlock_AES128StandardVector(t *testing.T) {
 		0x70, 0xb4, 0xc5, 0x5a,
 	}
 
-	gotErr, plainBlock := getBlock(plaintext)
+	plainBlock, gotErr := getBlock(plaintext)
 	if gotErr != nil {
 		t.Fatalf("getBlock returned error for plaintext: %v", gotErr)
 	}
@@ -669,7 +669,7 @@ func TestAES128RoundStages_MatchNISTAppendixB(t *testing.T) {
 		{0x16, 0xa6, 0x88, 0x3c},
 	})
 
-	gotErr, roundKeys := generateRoundKeys(key)
+	roundKeys, gotErr := generateRoundKeys(key)
 	if gotErr != nil {
 		t.Fatalf("generateRoundKeys returned error: %v", gotErr)
 	}

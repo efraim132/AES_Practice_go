@@ -96,7 +96,7 @@ func (b block) substituteBytes() block {
 	return out
 }
 
-func getBlock(data [16]byte) (error, block) {
+func getBlock(data [16]byte) (block, error) {
 	output := block{}
 	for col := 0; col < 4; col++ {
 		output[col] = [4]byte{
@@ -106,7 +106,7 @@ func getBlock(data [16]byte) (error, block) {
 			data[col*4+3],
 		}
 	}
-	return nil, output
+	return output, nil
 }
 
 func (b block) getData() [16]byte {
@@ -153,9 +153,9 @@ func (w word) rotateWord() word {
 	return word{w[1], w[2], w[3], w[0]}
 }
 
-func generateRoundKey(previousKey roundkey, round int) (error, roundkey) {
+func generateRoundKey(previousKey roundkey, round int) (roundkey, error) {
 	if round < 1 || round > 10 {
-		return fmt.Errorf("round must be between 1 and 10, got %d", round), roundkey{}
+		return roundkey{}, fmt.Errorf("round must be between 1 and 10, got %d", round)
 	}
 
 	output := roundkey{}
@@ -171,15 +171,15 @@ func generateRoundKey(previousKey roundkey, round int) (error, roundkey) {
 	output[2] = output[1].xor(previousKey[2])
 	output[3] = output[2].xor(previousKey[3])
 
-	return nil, output
+	return output, nil
 }
 
-func generateRoundKeys(originalKey [16]byte) (error, []roundkey) {
+func generateRoundKeys(originalKey [16]byte) ([]roundkey, error) {
 	var outputKeys []roundkey
-	err, originalKeyBlockForm := getBlock(originalKey)
+	originalKeyBlockForm, err := getBlock(originalKey)
 	// log.Info("Converting Original Key", "originalKey", originalKey, "originalKeyBlockForm", originalKeyBlockForm)
 	if err != nil {
-		return fmt.Errorf("original key must be 16 bytes long"), nil
+		return nil, fmt.Errorf("original key must be 16 bytes long")
 	}
 	// Convert the original key into a roundkey form
 	var originalRoundWordForm roundkey
@@ -189,14 +189,14 @@ func generateRoundKeys(originalKey [16]byte) (error, []roundkey) {
 	outputKeys = append(outputKeys, originalRoundWordForm)
 
 	for round := 1; round <= 10; round++ {
-		err, newRoundKey := generateRoundKey(outputKeys[round-1], round)
+		newRoundKey, err := generateRoundKey(outputKeys[round-1], round)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 		outputKeys = append(outputKeys, newRoundKey)
 	}
 
-	return nil, outputKeys
+	return outputKeys, nil
 }
 
 func (b block) shiftRows() block {
@@ -251,6 +251,16 @@ func (b block) xorRoundKey(key roundkey) block {
 	return output
 }
 
+func (b block) XORBlocks(target block) block {
+	output := block{}
+	for col := 0; col < 4; col++ {
+		for row := 0; row < 4; row++ {
+			output[col][row] = b[col][col] ^ target[col][row]
+		}
+	}
+	return output
+}
+
 func (b block) applyFullRound(keyForRound roundkey) block {
 	b = b.substituteBytes()
 	b = b.shiftRows()
@@ -262,7 +272,7 @@ func (b block) applyFullRound(keyForRound roundkey) block {
 func (b block) EncryptBlock(cipherKey [16]byte) block {
 	result := b
 
-	err, roundKeys := generateRoundKeys(cipherKey)
+	roundKeys, err := generateRoundKeys(cipherKey)
 	if err != nil {
 		// log.Fatal("Error generating round keys:", err)
 	}
@@ -278,10 +288,56 @@ func (b block) EncryptBlock(cipherKey [16]byte) block {
 	return result
 }
 
+func EncryptBytes(key, data []byte) ([]byte, error) {
+	if len(key) != 16 {
+		return nil, fmt.Errorf("key must be 16 bytes")
+	}
+	if len(data) != 16 {
+		return nil, fmt.Errorf("data must be 16 bytes")
+	}
+	var dataInput [16]byte
+	copy(dataInput[:], data)
+	blockData, err := getBlock(dataInput)
+	if err != nil {
+		return nil, err
+	}
+
+	var keyBlock [16]byte
+	copy(keyBlock[:], key)
+
+	encryptedBlock := blockData.EncryptBlock(keyBlock)
+	outputData := encryptedBlock.getData()
+	return outputData[:], nil
+
+}
+
+func DecryptBytes(key, data []byte) ([]byte, error) {
+	if len(key) != 16 {
+		return nil, fmt.Errorf("key must be 16 bytes")
+	}
+	if len(data) != 16 {
+		return nil, fmt.Errorf("data must be 16 bytes")
+	}
+	var dataInput [16]byte
+	copy(dataInput[:], data)
+	blockData, err := getBlock(dataInput)
+	if err != nil {
+		return nil, err
+	}
+
+	var keyBlock [16]byte
+	copy(keyBlock[:], key)
+
+	decryptedBlock := blockData.DecryptBlock(keyBlock)
+	outputData := decryptedBlock.getData()
+	return outputData[:], nil
+
+}
+
 func (b block) DecryptBlock(cipherKey [16]byte) block {
 	result := b
 
-	err, roundKeys := generateRoundKeys(cipherKey)
+	roundKeys, err := generateRoundKeys(cipherKey)
 	if err != nil {
 		// log.Fatal("Error generating round keys:", err)
 	}
@@ -380,7 +436,7 @@ func (b block) applyInverseFullRound(r roundkey) block {
 //	cipherKey := [16]byte{0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c}
 //
 //	// log.Info("Starting Encrypt", "plainText", plainText, "cipherKey", cipherKey)
-//	err, plainBlock := getBlock(plainText)
+//	plainBlock, err := getBlock(plainText)
 //	if err != nil {
 //		// log.Fatal("Error getting plain text:", err)
 //	}
@@ -401,7 +457,7 @@ func (b block) applyInverseFullRound(r roundkey) block {
 //	cipherKey := [16]byte{0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c}
 //
 //	// log.Info("Starting Encrypt", "cipherText", cipherData, "cipherKey", cipherKey)
-//	err, cipherBlock := getBlock(cipherData)
+//	cipherBlock, err := getBlock(cipherData)
 //	if err != nil {
 //		// log.Fatal("Error getting cipherText text:", err)
 //	}
