@@ -72,17 +72,12 @@ func XORBytes(a, b []byte) []byte {
 	return a
 }
 
-func EncryptFileCTR(filename string, key []byte) ([]byte, error) {
+// EncryptByteStreamCTR returns nonce, data, and error
+func EncryptByteStreamCTR(data []byte, key []byte) ([]byte, []byte, error) {
 	if len(key) != BlockSizeBytes {
-		return nil, fmt.Errorf("Key Incorrect Length")
+		return nil, nil, fmt.Errorf("Key Incorrect Length")
 	}
-
-	log.Debugf("Encrypting file %s", filename)
-	plainData, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	fileSize := len(plainData)
+	fileSize := len(data)
 	nonce := GenerateNonce()
 
 	var cipherBlockSize int
@@ -94,10 +89,47 @@ func EncryptFileCTR(filename string, key []byte) ([]byte, error) {
 
 	cipherStream, err := generateKeyStream(key, nonce, cipherBlockSize)
 	if err != nil {
+		return nil, nil, err
+	}
+
+	cipherData := XORBytes(data, cipherStream)
+	return nonce, cipherData, nil
+}
+
+func DecryptByteStreamCTR(nonce, key, cipherData []byte) ([]byte, error) {
+	if len(key) != BlockSizeBytes {
+		return nil, fmt.Errorf("Key Incorrect Length")
+	}
+	cipherDataLength := len(cipherData)
+	var cipherBlockSize int
+	if cipherDataLength%BlockSizeBytes != 0 {
+		cipherBlockSize = cipherDataLength/BlockSizeBytes + 1
+	} else {
+		cipherBlockSize = cipherDataLength / BlockSizeBytes
+	}
+	cipherStream, err := generateKeyStream(key, nonce, cipherBlockSize)
+	if err != nil {
+		return nil, err
+	}
+	decryptedData := XORBytes(cipherData, cipherStream)
+	return decryptedData, nil
+}
+
+func EncryptFileCTR(filename string, key []byte) ([]byte, error) {
+	if len(key) != BlockSizeBytes {
+		return nil, fmt.Errorf("Key Incorrect Length")
+	}
+	fileRawData, err := os.ReadFile(filename)
+	if err != nil {
 		return nil, err
 	}
 
-	cipherData := XORBytes(plainData, cipherStream)
+	log.Debugf("Encrypting file %s", filename)
+
+	nonce, cipherData, err := EncryptByteStreamCTR(fileRawData, key)
+	if err != nil {
+		return nil, err
+	}
 
 	fileData := append(nonce, cipherData...)
 	return fileData, nil
@@ -105,9 +137,7 @@ func EncryptFileCTR(filename string, key []byte) ([]byte, error) {
 }
 
 func DecryptFileCTR(filename string, key []byte) ([]byte, error) {
-	if len(key) != BlockSizeBytes {
-		return nil, fmt.Errorf("Key Incorrect Length")
-	}
+
 	log.Debugf("Decrypting file %s", filename)
 	plainData, err := os.ReadFile(filename)
 	if err != nil {
@@ -116,20 +146,9 @@ func DecryptFileCTR(filename string, key []byte) ([]byte, error) {
 	nonce := plainData[:BlockSizeBytes-CTRSize]
 	log.Infof("Found nonce: %s", nonce)
 	cipherData := plainData[BlockSizeBytes-CTRSize:]
-	cipherDataLength := len(cipherData)
-
-	var cipherBlockSize int
-	if cipherDataLength%BlockSizeBytes != 0 {
-		cipherBlockSize = cipherDataLength/BlockSizeBytes + 1
-	} else {
-		cipherBlockSize = cipherDataLength / BlockSizeBytes
-	}
-
-	cipherStream, err := generateKeyStream(key, nonce, cipherBlockSize)
+	decryptedData, err := DecryptByteStreamCTR(nonce, key, cipherData)
 	if err != nil {
 		return nil, err
 	}
-
-	decryptedData := XORBytes(cipherData, cipherStream)
 	return decryptedData, nil
 }
