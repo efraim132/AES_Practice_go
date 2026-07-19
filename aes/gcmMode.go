@@ -11,6 +11,7 @@ import (
 // stored in big-endian order, so each loop reads the next bit of y from left
 // to right. value is shifted right after each bit; when a one falls off, the
 // reduction constant 0xe1 represents the rest of the field polynomial.
+// todo review this -Codex Generated
 func multiplyGF128(x, y [BlockSizeBytes]byte) [BlockSizeBytes]byte {
 	var product [BlockSizeBytes]byte
 	value := x
@@ -64,7 +65,7 @@ func encryptByteStreamGCMWithNonce(data, key, nonce []byte) ([]byte, []byte, []b
 
 	var j0 [BlockSizeBytes]byte
 	copy(j0[:], nonce)
-	j0[BlockSizeBytes-1] = 1
+	j0[BlockSizeBytes-1] = 1 // nonce || 00 00 00 00 is never used thats why we increment by 1
 
 	cipherData, err := encryptGCMCounterMode(data, key, j0)
 	if err != nil {
@@ -72,7 +73,7 @@ func encryptByteStreamGCMWithNonce(data, key, nonce []byte) ([]byte, []byte, []b
 	}
 
 	ghash := ghashCiphertext(cipherData, h)
-	tagMask, err := EncryptBytes(key, j0[:])
+	tagMask, err := EncryptBytes(key, j0[:]) // nonce || 00 00 00 01
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -90,7 +91,7 @@ func encryptByteStreamGCMWithNonce(data, key, nonce []byte) ([]byte, []byte, []b
 func encryptGCMCounterMode(data, key []byte, j0 [BlockSizeBytes]byte) ([]byte, error) {
 	cipherData := make([]byte, len(data))
 	counter := j0
-	incrementGCMCounter(&counter)
+	incrementGCMCounter(&counter) //Initially added due to standard, we start at J1 which is nonce || 00 00 00 02
 
 	for blockStart := 0; blockStart < len(data); blockStart += BlockSizeBytes {
 		keyStream, err := EncryptBytes(key, counter[:])
@@ -112,6 +113,7 @@ func encryptGCMCounterMode(data, key []byte, j0 [BlockSizeBytes]byte) ([]byte, e
 	return cipherData, nil
 }
 
+// functionally the same as in CTR mode, this is just more elegant
 func incrementGCMCounter(counter *[BlockSizeBytes]byte) {
 	value := binary.BigEndian.Uint32(counter[BlockSizeBytes-CTRSize:])
 	binary.BigEndian.PutUint32(counter[BlockSizeBytes-CTRSize:], value+1)
