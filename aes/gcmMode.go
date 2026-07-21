@@ -61,7 +61,7 @@ func encryptByteStreamGCMWithNonce(data, key, nonce []byte) ([]byte, []byte, []b
 		return nil, nil, nil, err
 	}
 	var h [BlockSizeBytes]byte
-	copy(h[:], hBytes)
+	copy(h[:], hBytes) //simply so that we have []byte type rather than [BlockSizeBytes]byte type
 
 	var j0 [BlockSizeBytes]byte
 	copy(j0[:], nonce)
